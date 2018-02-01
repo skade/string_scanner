@@ -55,6 +55,7 @@ impl<'input> StringScanner<'input> {
 
     pub fn set_position(&mut self, position: usize) {
         self.position = position;
+        self.matched = None;
     }
 
     pub fn scan(&mut self, pattern: &str) -> Option<&'input str> {
@@ -87,20 +88,12 @@ impl<'input> StringScanner<'input> {
         }
     }
     
-    // pub fn getch(&mut self) -> Option<&'input str> {
-    //     if self.position < self.string.len() {
-    //         let slice = &self.string[self.position..self.position+1];
-    //         self.position += 1;
-    //         self.matched = Some(slice.into());
-    //         Some(slice)
-    //     } else {
-    //         self.matched = None;
-    //         None
-    //     }
-    // }
+    pub fn getch(&mut self) -> Option<&'input str> {
+        self.scan(".")
+    }
 
     pub fn terminate(&mut self) {
-        self.position = self.string.len() - 1;
+        self.set_position(self.string.len() - 1);
     }
 
     pub fn eos(&self) -> bool {
@@ -115,7 +108,7 @@ impl<'input> StringScanner<'input> {
         self.matched.as_ref().map(|cap| {
             let matched = cap.full_match();
 
-            &self.string[..matched.start()]
+            &self.string[..self.position-matched.as_str().len()]
         })
     }
 
@@ -123,7 +116,7 @@ impl<'input> StringScanner<'input> {
         self.matched.as_ref().map(|cap| {
             let matched = cap.full_match();
 
-            &self.string[matched.end()..]
+            &self.string[self.position+matched.end()..]
         })
     }
 
@@ -241,9 +234,9 @@ mod matched {
             let mut s = StringScanner::new("This is a test");
             s.scan(r#"\w+"#); // TODO: use s.match port instead
             assert_eq!(s.matched(), Some("This"));
-            // s.getch();
-            // assert_eq!(s.matched(), Some(" "));
-            //assert_eq!(s.scan(r#""#), Some(""));
+            s.getch();
+            assert_eq!(s.matched(), Some(" "));
+            assert_eq!(s.scan(r#""#), Some(""));
         }
 
         #[test]
@@ -356,9 +349,32 @@ mod pre_match {
             assert_eq!(s.pre_match(), None);
             s.scan(r#"\w+\s"#);
             assert_eq!(s.pre_match(), Some(""));
+            s.getch();
+            assert_eq!(s.pre_match(), Some("This "));
+        }
 
-            //getch
-            //postmatch test
+        #[test]
+        fn return_nil_if_theres_no_match() {
+            let mut s = StringScanner::new("This is a test");
+            s.scan(r#"^\s+"#);
+            assert_eq!(s.pre_match(), None);
+        }
+
+        #[test]
+        fn be_more_than_just_the_data_from_the_last_match() {
+            let mut s = StringScanner::new("This is a test");
+            s.scan(r#"\w+"#);
+            s.scan_until(r#"a te"#);
+            assert_eq!(s.pre_match(), Some("This is "));
+        }
+
+        #[test]
+        fn be_invalidated_when_the_scanners_position_changes() {
+            let mut s = StringScanner::new("This is a test");
+            s.scan_until(r#"\s+"#);
+            assert_eq!(s.pre_match(), Some("This"));
+            s.set_position(0);
+            assert_eq!(s.pre_match(), None);
         }
     }
 }
