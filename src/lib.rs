@@ -7,6 +7,16 @@ pub struct StringScanner<'input> {
     matched: Option<regex::Captures<'input>>
 }
 
+trait CapturesExtension<'input> {
+    fn full_match(&self) -> regex::Match<'input>;
+}
+
+impl<'input> CapturesExtension<'input> for regex::Captures<'input> {
+    fn full_match(&self) -> regex::Match<'input> {
+        self.get(0).unwrap()
+    }
+}
+
 impl<'input> StringScanner<'input> {
     pub fn new(s: &'input str) -> StringScanner<'input> {
         StringScanner {
@@ -29,7 +39,7 @@ impl<'input> StringScanner<'input> {
         let matched = regex.captures(&self.string[self.position..]);
 
         self.matched = matched;
-        self.matched.as_ref().map(|r| r.get(0).unwrap().as_str())
+        self.matched.as_ref().map(|cap| cap.full_match().as_str())
     }
 
     pub fn check_until(&mut self, pattern: &str) -> Option<&'input str> {
@@ -38,7 +48,7 @@ impl<'input> StringScanner<'input> {
 
         self.matched = matched;
         self.matched.as_ref().map(|cap| {
-            let info = cap.get(0).unwrap();
+            let info = cap.full_match();
             &self.string[self.position..info.end()]
         })
     }
@@ -53,7 +63,7 @@ impl<'input> StringScanner<'input> {
 
         self.matched = matched;
         if let Some(ref cap) = self.matched {
-            let info = cap.get(0).unwrap();
+            let info = cap.full_match();
             self.position = self.position + info.end();
         }
 
@@ -67,7 +77,7 @@ impl<'input> StringScanner<'input> {
         self.matched = matched;
 
         if let Some(ref cap) = self.matched {
-            let info = cap.get(0).unwrap();
+            let info = cap.full_match();
             let result = Some(&self.string[self.position..self.position+info.end()]);
 
             self.position = self.position + info.end();
@@ -98,12 +108,24 @@ impl<'input> StringScanner<'input> {
     }
 
     pub fn matched(&self) -> Option<&'input str> {
-        self.matched.as_ref().map(|m| m.get(0).unwrap().as_str())
+        self.matched.as_ref().map(|m| m.full_match().as_str())
     }
 
-    // pub fn post_match() -> Option<&'input str> {
+    pub fn pre_match(&self) -> Option<&'input str> {
+        self.matched.as_ref().map(|cap| {
+            let matched = cap.full_match();
 
-    // }
+            &self.string[..matched.start()]
+        })
+    }
+
+    pub fn post_match(&self) -> Option<&'input str> {
+        self.matched.as_ref().map(|cap| {
+            let matched = cap.full_match();
+
+            &self.string[matched.end()..]
+        })
+    }
 
     pub fn subscan(&self) -> StringScanner<'input> {
         StringScanner {
@@ -319,6 +341,24 @@ mod scan_until {
 
             s.scan(r#"T"#);
             assert_eq!(s.scan_until(r#"^h"#), Some("h"));
+        }
+    }
+}
+
+#[cfg(test)]
+mod pre_match {
+    mod should {
+        use StringScanner;
+
+        #[test]
+        fn return_the_pre_match_in_the_regular_expression_sense_of_the_last_scan() {
+            let mut s = StringScanner::new("This is a test");
+            assert_eq!(s.pre_match(), None);
+            s.scan(r#"\w+\s"#);
+            assert_eq!(s.pre_match(), Some(""));
+
+            //getch
+            //postmatch test
         }
     }
 }
