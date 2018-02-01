@@ -1,10 +1,10 @@
 extern crate regex;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct StringScanner<'input> {
     string: &'input str,
     position: usize,
-    matched: Option<&'input str>
+    matched: Option<regex::Captures<'input>>
 }
 
 impl<'input> StringScanner<'input> {
@@ -15,6 +15,7 @@ impl<'input> StringScanner<'input> {
             matched: None
         }
     }
+
     pub fn beginning_of_line(&self) -> bool {
         self.position == 0 || &self.string[self.position - 1..self.position] == "\n"
     }
@@ -23,34 +24,70 @@ impl<'input> StringScanner<'input> {
         self.beginning_of_line()
     }
 
+    pub fn check(&mut self, pattern: &str) -> Option<&'input str> {
+        let regex = regex::Regex::new(pattern).unwrap();
+        let matched = regex.captures(&self.string[self.position..]);
+
+        self.matched = matched;
+        self.matched.as_ref().map(|r| r.get(0).unwrap().as_str())
+    }
+
+    pub fn check_until(&mut self, pattern: &str) -> Option<&'input str> {
+        let regex = regex::Regex::new(pattern).unwrap();
+        let matched = regex.captures(&self.string[self.position..]);
+
+        self.matched = matched;
+        self.matched.as_ref().map(|cap| {
+            let info = cap.get(0).unwrap();
+            &self.string[self.position..info.end()]
+        })
+    }
+
     pub fn set_position(&mut self, position: usize) {
         self.position = position;
     }
 
     pub fn scan(&mut self, pattern: &str) -> Option<&'input str> {
         let regex = regex::Regex::new(pattern).unwrap();
-        let res = regex.find(&self.string[self.position..]);
+        let matched = regex.captures(&self.string[self.position..]);
 
-        if let Some(ref info) = res {
+        self.matched = matched;
+        if let Some(ref cap) = self.matched {
+            let info = cap.get(0).unwrap();
             self.position = self.position + info.end();
-            self.matched = Some(info.as_str());
         }
 
-        
-        res.map(|r| r.as_str())
+        self.matched.as_ref().map(|m| m.get(0).unwrap().as_str())
     }
-    
-    pub fn getch(&mut self) -> Option<&'input str> {
-        if self.position < self.string.len() {
-            let slice = &self.string[self.position..self.position+1];
-            self.position += 1;
-            self.matched = Some(slice);
-            Some(slice)
+
+    pub fn scan_until(&mut self, pattern: &str) -> Option<&'input str> {
+        let regex = regex::Regex::new(pattern).unwrap();
+        let matched = regex.captures(&self.string[self.position..]);
+
+        self.matched = matched;
+
+        if let Some(ref cap) = self.matched {
+            let info = cap.get(0).unwrap();
+            let result = Some(&self.string[self.position..self.position+info.end()]);
+
+            self.position = self.position + info.end();
+            result
         } else {
-            self.matched = None;
             None
         }
     }
+    
+    // pub fn getch(&mut self) -> Option<&'input str> {
+    //     if self.position < self.string.len() {
+    //         let slice = &self.string[self.position..self.position+1];
+    //         self.position += 1;
+    //         self.matched = Some(slice.into());
+    //         Some(slice)
+    //     } else {
+    //         self.matched = None;
+    //         None
+    //     }
+    // }
 
     pub fn terminate(&mut self) {
         self.position = self.string.len() - 1;
@@ -61,7 +98,19 @@ impl<'input> StringScanner<'input> {
     }
 
     pub fn matched(&self) -> Option<&'input str> {
-        self.matched
+        self.matched.as_ref().map(|m| m.get(0).unwrap().as_str())
+    }
+
+    // pub fn post_match() -> Option<&'input str> {
+
+    // }
+
+    pub fn subscan(&self) -> StringScanner<'input> {
+        StringScanner {
+            string: &self.string[self.position..],
+            position: 0,
+            matched: None,
+        }
     }
 }
 
@@ -88,6 +137,39 @@ mod beginning_of_line {
 }
 
 #[cfg(test)]
+mod check {
+    mod should {
+        use StringScanner;
+
+        #[test]
+        fn returns_the_value_that_scan_would_return_without_advancing_the_scan_pointer() {
+            let mut s = StringScanner::new("This is a test");
+            assert_eq!(s.check(r#"This"#), Some("This"));
+            assert_eq!(s.matched(), Some("This"));
+            assert_eq!(s.position, 0);
+            assert_eq!(s.check(r#"^is"#), None);
+            assert_eq!(s.matched(), None);
+        }
+    }
+}
+
+#[cfg(test)]
+mod check_until {
+    mod should {
+        use StringScanner;
+
+        #[test]
+        fn returns_the_same_value_of_scan_until_but_don_t_advances_the_scan_pointer() {
+            let mut s = StringScanner::new("This is a test");
+            assert_eq!(s.check_until(r#"a"#), Some("This is a"));
+            assert_eq!(s.position, 0);
+            assert_eq!(s.matched(), Some("a"));
+            assert_eq!(s.check_until(r#"test"#), Some("This is a test"));
+        }
+    }
+}
+
+#[cfg(test)]
 mod terminate {
     mod should {
         use StringScanner;
@@ -102,30 +184,30 @@ mod terminate {
     }
 }
 
-#[cfg(test)]
-mod getch {
-    mod should {
-        use StringScanner;
+// #[cfg(test)]
+// mod getch {
+//     mod should {
+//         use StringScanner;
 
-        #[test]
-        fn scans_one_character_and_returns_it() {
-            let mut s = StringScanner::new("abc");
-            assert_eq!(s.getch(), Some("a"));
-            assert_eq!(s.getch(), Some("b"));
-            assert_eq!(s.getch(), Some("c"));
-        }
+//         #[test]
+//         fn scans_one_character_and_returns_it() {
+//             let mut s = StringScanner::new("abc");
+//             assert_eq!(s.getch(), Some("a"));
+//             assert_eq!(s.getch(), Some("b"));
+//             assert_eq!(s.getch(), Some("c"));
+//         }
 
-        #[test]
-        fn it_returns_nil_at_the_end_of_the_string() {
-            let mut s = StringScanner::new("");
-            assert_eq!(s.getch(), None);
+//         #[test]
+//         fn it_returns_nil_at_the_end_of_the_string() {
+//             let mut s = StringScanner::new("");
+//             assert_eq!(s.getch(), None);
 
-            let mut s = StringScanner::new("a");
-            s.getch();
-            assert_eq!(s.getch(), None);
-        }
-    }
-}
+//             let mut s = StringScanner::new("a");
+//             s.getch();
+//             assert_eq!(s.getch(), None);
+//         }
+//     }
+// }
 
 #[cfg(test)]
 mod matched {
@@ -137,8 +219,8 @@ mod matched {
             let mut s = StringScanner::new("This is a test");
             s.scan(r#"\w+"#); // TODO: use s.match port instead
             assert_eq!(s.matched(), Some("This"));
-            s.getch();
-            assert_eq!(s.matched(), Some(" "));
+            // s.getch();
+            // assert_eq!(s.matched(), Some(" "));
             //assert_eq!(s.scan(r#""#), Some(""));
         }
 
@@ -206,6 +288,37 @@ mod scan {
             assert_eq!(s.scan(r#".*"#), Some("This is a test"));
             assert_eq!(s.scan(r#".*"#), Some(""));
             assert_eq!(s.scan(r#"."#), None);
+        }
+    }
+}
+
+
+#[cfg(test)]
+mod scan_until {
+    mod should {
+        use StringScanner;
+
+        #[test]
+        fn return_the_substring_up_to_and_including_the_end_of_the_match() {
+            let mut s = StringScanner::new("This is a test");
+            assert_eq!(s.scan_until(r#"a"#), Some("This is a"));
+            //prematch
+            //postmatch test
+        }
+
+        #[test]
+        fn return_none_if_theres_no_match() {
+            let mut s = StringScanner::new("This is a test");
+
+            assert_eq!(s.scan_until(r#"\d"#), None);
+        }
+
+        #[test]
+        fn match_anchors_properly() {
+            let mut s = StringScanner::new("This is a test");
+
+            s.scan(r#"T"#);
+            assert_eq!(s.scan_until(r#"^h"#), Some("h"));
         }
     }
 }
