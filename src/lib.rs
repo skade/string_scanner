@@ -199,30 +199,30 @@ mod terminate {
     }
 }
 
-// #[cfg(test)]
-// mod getch {
-//     mod should {
-//         use StringScanner;
+#[cfg(test)]
+mod getch {
+    mod should {
+        use StringScanner;
 
-//         #[test]
-//         fn scans_one_character_and_returns_it() {
-//             let mut s = StringScanner::new("abc");
-//             assert_eq!(s.getch(), Some("a"));
-//             assert_eq!(s.getch(), Some("b"));
-//             assert_eq!(s.getch(), Some("c"));
-//         }
+        #[test]
+        fn scans_one_character_and_returns_it() {
+            let mut s = StringScanner::new("abc");
+            assert_eq!(s.getch(), Some("a"));
+            assert_eq!(s.getch(), Some("b"));
+            assert_eq!(s.getch(), Some("c"));
+        }
 
-//         #[test]
-//         fn it_returns_nil_at_the_end_of_the_string() {
-//             let mut s = StringScanner::new("");
-//             assert_eq!(s.getch(), None);
+        #[test]
+        fn it_returns_nil_at_the_end_of_the_string() {
+            let mut s = StringScanner::new("");
+            assert_eq!(s.getch(), None);
 
-//             let mut s = StringScanner::new("a");
-//             s.getch();
-//             assert_eq!(s.getch(), None);
-//         }
-//     }
-// }
+            let mut s = StringScanner::new("a");
+            s.getch();
+            assert_eq!(s.getch(), None);
+        }
+    }
+}
 
 #[cfg(test)]
 mod matched {
