@@ -82,6 +82,7 @@ impl<'input> StringScanner<'input> {
             let result = Some(&self.string[self.position..self.position+info.end()]);
 
             self.position = self.position + info.end();
+
             result
         } else {
             None
@@ -113,10 +114,8 @@ impl<'input> StringScanner<'input> {
     }
 
     pub fn post_match(&self) -> Option<&'input str> {
-        self.matched.as_ref().map(|cap| {
-            let matched = cap.full_match();
-
-            &self.string[self.position+matched.end()..]
+        self.matched.as_ref().map(|_| {
+            &self.string[self.position..]
         })
     }
 
@@ -232,7 +231,7 @@ mod matched {
         #[test]
         fn returns_the_last_matched_string() {
             let mut s = StringScanner::new("This is a test");
-            s.scan(r#"\w+"#); // TODO: use s.match port instead
+            s.scan(r#"\w+"#);
             assert_eq!(s.matched(), Some("This"));
             s.getch();
             assert_eq!(s.matched(), Some(" "));
@@ -317,8 +316,8 @@ mod scan_until {
         fn return_the_substring_up_to_and_including_the_end_of_the_match() {
             let mut s = StringScanner::new("This is a test");
             assert_eq!(s.scan_until(r#"a"#), Some("This is a"));
-            //prematch
-            //postmatch test
+            assert_eq!(s.pre_match(), Some("This is "));
+            assert_eq!(s.post_match(), Some(" test"));
         }
 
         #[test]
@@ -375,6 +374,30 @@ mod pre_match {
             assert_eq!(s.pre_match(), Some("This"));
             s.set_position(0);
             assert_eq!(s.pre_match(), None);
+        }
+    }
+}
+
+#[cfg(test)]
+mod post_match {
+    mod should {
+        use StringScanner;
+
+        #[test]
+        fn return_the_post_match_in_the_regular_expression_sense_of_the_last_scan() {
+            let mut s = StringScanner::new("This is a test");
+            assert_eq!(s.post_match(), None);
+            s.scan(r#"\w+\s"#);
+            assert_eq!(s.post_match(), Some("is a test"));
+            s.getch();
+            assert_eq!(s.post_match(), Some("s a test"));
+        }
+
+        #[test]
+        fn return_nil_if_theres_no_match() {
+            let mut s = StringScanner::new("This is a test");
+            s.scan(r#"^\s+"#);
+            assert_eq!(s.post_match(), None);
         }
     }
 }
