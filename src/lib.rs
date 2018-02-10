@@ -65,7 +65,7 @@ impl<'input> StringScanner<'input> {
         self.matched = matched;
         if let Some(ref cap) = self.matched {
             let info = cap.full_match();
-            self.position = self.position + info.end();
+            self.position += info.end();
         }
 
         self.matched.as_ref().map(|m| m.get(0).unwrap().as_str())
@@ -81,7 +81,7 @@ impl<'input> StringScanner<'input> {
             let info = cap.full_match();
             let result = Some(&self.string[self.position..self.position+info.end()]);
 
-            self.position = self.position + info.end();
+            self.position += info.end();
 
             result
         } else {
